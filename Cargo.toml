@@ -45,6 +45,7 @@ opentelemetry-zipkin = { version = "0.31", default-features = false }
 opentelemetry-otlp = { version = "0.31", default-features = false }
 opentelemetry-proto = { version = "0.31", default-features = false }
 opentelemetry-stdout = { version = "0.31" }
+opentelemetry-appender-tracing = { version = "0.31" }
 rstest = "0.26"
 tokio = { version = "1", default-features = false }
 tokio-stream = { version = "0.1", default-features = false }

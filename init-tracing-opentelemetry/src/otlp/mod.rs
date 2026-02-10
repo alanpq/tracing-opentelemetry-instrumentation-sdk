@@ -1,9 +1,13 @@
+#[cfg(feature = "logs")]
+pub mod logs;
 #[cfg(feature = "metrics")]
 pub mod metrics;
 pub mod traces;
 
 #[cfg(feature = "metrics")]
 use opentelemetry::metrics::MeterProvider;
+#[cfg(feature = "logs")]
+use opentelemetry_sdk::logs::SdkLoggerProvider;
 #[cfg(feature = "metrics")]
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 
@@ -16,6 +20,8 @@ use opentelemetry_sdk::trace::SdkTracerProvider;
 pub struct OtelGuard {
     #[cfg(feature = "metrics")]
     pub(crate) meter_provider: SdkMeterProvider,
+    #[cfg(feature = "logs")]
+    pub(crate) logger_provider: SdkLoggerProvider,
     pub(crate) tracer_provider: SdkTracerProvider,
 }
 

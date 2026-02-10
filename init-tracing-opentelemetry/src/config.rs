@@ -42,10 +42,10 @@
 
 use std::path::{Path, PathBuf};
 
-use tracing::{Subscriber, info, level_filters::LevelFilter};
+use tracing::{info, level_filters::LevelFilter, Subscriber};
 use tracing_subscriber::{
-    Layer, Registry, filter::EnvFilter, fmt::format::FmtSpan, layer::SubscriberExt,
-    registry::LookupSpan,
+    filter::EnvFilter, fmt::format::FmtSpan, layer::SubscriberExt, registry::LookupSpan, Layer,
+    Registry,
 };
 
 #[cfg(feature = "logfmt")]
@@ -54,10 +54,12 @@ use crate::formats::{
     CompactLayerBuilder, FullLayerBuilder, JsonLayerBuilder, LayerBuilder, PrettyLayerBuilder,
 };
 
+#[cfg(feature = "logs")]
+use crate::tracing_subscriber_ext::build_logger_layer_with_resource;
 #[cfg(feature = "metrics")]
 use crate::tracing_subscriber_ext::build_metrics_layer_with_resource;
 use crate::tracing_subscriber_ext::build_tracer_layer_with_resource_and_name;
-use crate::{Error, otlp::OtelGuard, resource::DetectResource};
+use crate::{otlp::OtelGuard, resource::DetectResource, Error};
 
 /// Combined guard that handles both `OtelGuard` and optional `DefaultGuard`
 ///
@@ -628,9 +630,13 @@ impl TracingConfig {
             .build();
         #[cfg(feature = "metrics")]
         let (metrics_layer, meter_provider) = build_metrics_layer_with_resource(otel_rsrc.clone())?;
+        #[cfg(feature = "logs")]
+        let (logs_layer, logger_provider) = build_logger_layer_with_resource(otel_rsrc.clone())?;
         let (trace_layer, tracer_provider) =
             build_tracer_layer_with_resource_and_name(otel_rsrc, self.tracer_name.clone())?;
         let subscriber = subscriber.with(trace_layer);
+        #[cfg(feature = "logs")]
+        let subscriber = subscriber.with(logs_layer);
         #[cfg(feature = "metrics")]
         let subscriber = subscriber.with(metrics_layer);
         Ok((
@@ -638,6 +644,8 @@ impl TracingConfig {
             OtelGuard {
                 #[cfg(feature = "metrics")]
                 meter_provider,
+                #[cfg(feature = "logs")]
+                logger_provider,
                 tracer_provider,
             },
         ))

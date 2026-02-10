@@ -2,25 +2,29 @@
 use std::borrow::Cow;
 
 use opentelemetry::trace::TracerProvider;
+#[cfg(feature = "logs")]
+use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
+#[cfg(feature = "logs")]
+use opentelemetry_sdk::logs::{SdkLogger, SdkLoggerProvider};
 #[cfg(feature = "metrics")]
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::{
-    Resource,
     trace::{SdkTracerProvider, Tracer},
+    Resource,
 };
-use tracing::{Subscriber, level_filters::LevelFilter};
+use tracing::{level_filters::LevelFilter, Subscriber};
 #[cfg(feature = "metrics")]
 use tracing_opentelemetry::MetricsLayer;
 use tracing_opentelemetry::OpenTelemetryLayer;
-use tracing_subscriber::{Layer, filter::EnvFilter, layer::SubscriberExt, registry::LookupSpan};
+use tracing_subscriber::{filter::EnvFilter, layer::SubscriberExt, registry::LookupSpan, Layer};
 
 use crate::{
-    Error,
     config::TracingConfig,
     init_propagator, //stdio,
     otlp,
     otlp::OtelGuard,
     resource::DetectResource,
+    Error,
 };
 
 #[must_use]
@@ -97,15 +101,21 @@ where
 {
     #[cfg(feature = "metrics")]
     let (metrics_layer, meter_provider) = build_metrics_layer_with_resource(otel_rsrc.clone())?;
+    #[cfg(feature = "logs")]
+    let (logs_layer, logger_provider) = build_logger_layer_with_resource(otel_rsrc.clone())?;
     let (trace_layer, tracer_provider) = build_tracer_layer_with_resource(otel_rsrc)?;
     let subscriber = subscriber.with(trace_layer);
     #[cfg(feature = "metrics")]
     let subscriber = subscriber.with(metrics_layer);
+    #[cfg(feature = "logs")]
+    let subscriber = subscriber.with(logs_layer);
     Ok((
         subscriber,
         OtelGuard {
             #[cfg(feature = "metrics")]
             meter_provider,
+            #[cfg(feature = "logs")]
+            logger_provider,
             tracer_provider,
         },
     ))
@@ -160,10 +170,25 @@ where
     Ok((layer, tracer_provider))
 }
 
+#[cfg(feature = "logs")]
+pub(crate) fn build_logger_layer_with_resource(
+    otel_rsrc: Resource,
+) -> Result<
+    (
+        OpenTelemetryTracingBridge<SdkLoggerProvider, SdkLogger>,
+        SdkLoggerProvider,
+    ),
+    Error,
+> {
+    let log_provider = otlp::logs::init_loggerprovider(otel_rsrc, otlp::logs::identity)?;
+    let layer = OpenTelemetryTracingBridge::new(&log_provider);
+    Ok((layer, log_provider))
+}
+
 #[deprecated(since = "0.31.0", note = "Use `TracingConfig` instead")]
 #[cfg(feature = "metrics")]
-pub fn build_metrics_layer<S>()
--> Result<(MetricsLayer<S, SdkMeterProvider>, SdkMeterProvider), Error>
+pub fn build_metrics_layer<S>(
+) -> Result<(MetricsLayer<S, SdkMeterProvider>, SdkMeterProvider), Error>
 where
     S: Subscriber + for<'span> LookupSpan<'span>,
 {

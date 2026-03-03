@@ -1,7 +1,7 @@
 [package]
 name = "init-tracing-opentelemetry"
 description = "A set of helpers to initialize (and more) tracing + opentelemetry (compose your own or use opinionated preset)"
-readme = "README.md"
+# readme = "README.md"
 keywords = ["tracing", "opentelemetry"]
 categories = ["development-tools::debugging", "development-tools::profiling"]
 homepage = "https://github.com/davidB/tracing-opentelemetry-instrumentation-sdk/tree/main/init-tracing-opentelemetry"
